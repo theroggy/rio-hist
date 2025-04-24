@@ -6,7 +6,7 @@ import pytest
 import rasterio
 from click.testing import CliRunner
 
-from rio_hist.scripts.cli import hist, _validate_proportion
+from rio_hist.scripts.cli import _validate_proportion, hist
 
 
 def test_hist_cli(tmpdir):
@@ -17,6 +17,27 @@ def test_hist_cli(tmpdir):
     )
     assert result.exit_code == 0
     assert os.path.exists(output)
+    with rasterio.open(output) as out:
+        assert out.count == 3  # RGB
+
+
+def test_hist_cli_limit_bands(tmpdir):
+    output = str(tmpdir.join("matched.tif"))
+    runner = CliRunner()
+    result = runner.invoke(
+        hist,
+        [
+            "-b",
+            "1,2",
+            "tests/data/source1.tif",
+            "tests/data/reference1.tif",
+            output,
+        ],
+    )
+    assert result.exit_code == 0
+    assert os.path.exists(output)
+    with rasterio.open(output) as out:
+        assert out.count == 2  # RG
 
 
 def test_hist_cli2(tmpdir):
