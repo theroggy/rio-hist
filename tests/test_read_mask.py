@@ -1,3 +1,6 @@
+import tempfile
+from pathlib import Path
+
 import numpy as np
 import pytest
 import rasterio
@@ -5,6 +8,9 @@ from affine import Affine
 from rasterio.errors import NodataShadowWarning
 
 from rio_hist.utils import read_mask
+
+TMP_TEST_DIR = Path(tempfile.gettempdir()) / "rio-hist_testdata"
+TMP_TEST_DIR.mkdir(exist_ok=True, parents=True)
 
 red = np.array([[0, 0, 0], [0, 1, 1], [1, 0, 1]]).astype("uint8") * 255
 
@@ -40,7 +46,7 @@ _profile = {
 prof = _profile.copy()
 prof["count"] = 3
 prof["nodata"] = None
-with rasterio.open("/tmp/rgb_no_ndv.tif", "w", **prof) as dst:
+with rasterio.open(TMP_TEST_DIR / "rgb_no_ndv.tif", "w", **prof) as dst:
     dst.write(red, 1)
     dst.write(grn, 2)
     dst.write(blu, 3)
@@ -49,7 +55,7 @@ with rasterio.open("/tmp/rgb_no_ndv.tif", "w", **prof) as dst:
 prof = _profile.copy()
 prof["count"] = 3
 prof["nodata"] = 0
-with rasterio.open("/tmp/rgb_ndv.tif", "w", **prof) as dst:
+with rasterio.open(TMP_TEST_DIR / "rgb_ndv.tif", "w", **prof) as dst:
     dst.write(red, 1)
     dst.write(grn, 2)
     dst.write(blu, 3)
@@ -58,7 +64,7 @@ with rasterio.open("/tmp/rgb_ndv.tif", "w", **prof) as dst:
 prof = _profile.copy()
 prof["count"] = 4
 prof["nodata"] = None
-with rasterio.open("/tmp/rgba_no_ndv.tif", "w", **prof) as dst:
+with rasterio.open(TMP_TEST_DIR / "rgba_no_ndv.tif", "w", **prof) as dst:
     dst.write(red, 1)
     dst.write(grn, 2)
     dst.write(blu, 3)
@@ -68,7 +74,7 @@ with rasterio.open("/tmp/rgba_no_ndv.tif", "w", **prof) as dst:
 prof = _profile.copy()
 prof["count"] = 4
 prof["nodata"] = 0
-with rasterio.open("/tmp/rgba_ndv.tif", "w", **prof) as dst:
+with rasterio.open(TMP_TEST_DIR / "rgba_ndv.tif", "w", **prof) as dst:
     dst.write(red, 1)
     dst.write(grn, 2)
     dst.write(blu, 3)
@@ -77,7 +83,7 @@ with rasterio.open("/tmp/rgba_ndv.tif", "w", **prof) as dst:
 # 5. RGB with msk
 prof = _profile.copy()
 prof["count"] = 3
-with rasterio.open("/tmp/rgb_msk.tif", "w", **prof) as dst:
+with rasterio.open(TMP_TEST_DIR / "rgb_msk.tif", "w", **prof) as dst:
     dst.write(red, 1)
     dst.write(grn, 2)
     dst.write(blu, 3)
@@ -87,7 +93,7 @@ with rasterio.open("/tmp/rgb_msk.tif", "w", **prof) as dst:
 prof = _profile.copy()
 prof["count"] = 3
 with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True) as env:
-    with rasterio.open("/tmp/rgb_msk_internal.tif", "w", **prof) as dst:
+    with rasterio.open(TMP_TEST_DIR / "rgb_msk_internal.tif", "w", **prof) as dst:
         dst.write(red, 1)
         dst.write(grn, 2)
         dst.write(blu, 3)
@@ -96,7 +102,7 @@ with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True) as env:
 # 7. RGBA with msk
 prof = _profile.copy()
 prof["count"] = 4
-with rasterio.open("/tmp/rgba_msk.tif", "w", **prof) as dst:
+with rasterio.open(TMP_TEST_DIR / "rgba_msk.tif", "w", **prof) as dst:
     dst.write(red, 1)
     dst.write(grn, 2)
     dst.write(blu, 3)
@@ -105,28 +111,28 @@ with rasterio.open("/tmp/rgba_msk.tif", "w", **prof) as dst:
 
 
 def test_no_ndv():
-    with rasterio.open("/tmp/rgb_no_ndv.tif") as src:
+    with rasterio.open(TMP_TEST_DIR / "rgb_no_ndv.tif") as src:
         assert np.array_equal(read_mask(src), alldata)
 
 
 def test_rgb_ndv():
-    with rasterio.open("/tmp/rgb_ndv.tif") as src:
+    with rasterio.open(TMP_TEST_DIR / "rgb_ndv.tif") as src:
         assert np.array_equal(read_mask(src), alp)
 
 
 def test_rgba_no_ndv():
-    with rasterio.open("/tmp/rgba_no_ndv.tif") as src:
+    with rasterio.open(TMP_TEST_DIR / "rgba_no_ndv.tif") as src:
         assert np.array_equal(read_mask(src), alp)
 
 
 def test_rgba_ndv():
-    with rasterio.open("/tmp/rgba_ndv.tif") as src:
+    with rasterio.open(TMP_TEST_DIR / "rgba_ndv.tif") as src:
         with pytest.warns(NodataShadowWarning):
             assert np.array_equal(read_mask(src), alp)
 
 
 def test_rgb_msk():
-    with rasterio.open("/tmp/rgb_msk.tif") as src:
+    with rasterio.open(TMP_TEST_DIR / "rgb_msk.tif") as src:
         assert np.array_equal(read_mask(src), msk)
         # each band's mask is also equal
         for bmask in src.read_masks():
@@ -134,11 +140,11 @@ def test_rgb_msk():
 
 
 def test_rgb_msk_int():
-    with rasterio.open("/tmp/rgb_msk_internal.tif") as src:
+    with rasterio.open(TMP_TEST_DIR / "rgb_msk_internal.tif") as src:
         assert np.array_equal(read_mask(src), msk)
 
 
 def test_rgba_msk():
-    with rasterio.open("/tmp/rgba_msk.tif") as src:
+    with rasterio.open(TMP_TEST_DIR / "rgba_msk.tif") as src:
         # mask takes precendent over alpha
         assert np.array_equal(read_mask(src), msk)
