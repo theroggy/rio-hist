@@ -6,7 +6,7 @@ import pytest
 import rasterio
 from click.testing import CliRunner
 
-from rio_hist.scripts.cli import hist, validate_proportion
+from rio_hist.scripts.cli import hist, _validate_proportion
 
 
 def test_hist_cli(tmpdir):
@@ -139,8 +139,8 @@ def test_partial(tmpdir):
 
 
 def test_validate_proportion():
-    assert validate_proportion(None, None, 0) == 0.0
-    assert validate_proportion(None, None, 0.5) == 0.5
-    assert validate_proportion(None, None, 1) == 1.0
+    assert _validate_proportion(None, None, 0) == 0.0
+    assert _validate_proportion(None, None, 0.5) == 0.5
+    assert _validate_proportion(None, None, 1) == 1.0
     with pytest.raises(click.BadParameter):
-        assert validate_proportion(None, None, 9000)
+        assert _validate_proportion(None, None, 9000)
