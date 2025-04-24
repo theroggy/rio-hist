@@ -1,5 +1,9 @@
 CHANGES
 
+1.1.0 (YYYY-MM-DD)
+------------------
+- Add support to process less than 3 bands (#6).
+
 1.0.0 (2019-12-04)
 ------------------
 - Rasterio's NodataShadowWarning is handled in the mask reading tests.
