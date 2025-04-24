@@ -56,6 +56,13 @@ target/
 # OS X
 .DS_Store
 
+# Project settings
+.spyderproject
+.spyproject
+.idea
+.ropeproject
+.vscode
+
 # Pyenv
 .python-version
 
