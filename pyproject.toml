@@ -1,0 +1,85 @@
+[tool.pyright]
+exclude = ["local_ignore"]
+ignore = ["*"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+extend-exclude = ["docs/*", "setup.py"]
+
+lint.select = [
+    # pyflakes
+    "F",
+    # pycodestyle
+    "E",
+    "W",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-debugger
+    "T10",
+    # flake8-simplify
+    # "SIM",
+    # pylint
+    "PLC",
+    "PLE",
+    "PLR",
+    "PLW",
+    # misc lints
+    "PIE",
+    # implicit string concatenation
+    "ISC",
+    # type-checking imports
+    "TCH",
+    # comprehensions
+    "C4",
+    # Ruff-specific rules
+    "RUF",
+    # isort
+    "I",
+    # pydocstyle
+    "D",
+]
+
+lint.ignore = [
+    ### Intentionally disabled
+    # module level import not at top of file
+    "E402",
+    # do not assign a lambda expression, use a def
+    "E731",
+    # mutable-argument-default
+    "B006",
+    # unused-loop-control-variable
+    "B007",
+    # get-attr-with-constant
+    "B009",
+    # Only works with python >=3.10
+    "B905",
+    # dict literals
+    "C408",
+    # Too many arguments to function call
+    "PLR0913",
+    # Too many returns
+    "PLR0911",
+    # Too many branches
+    "PLR0912",
+    # Too many statements
+    "PLR0915",
+    # Magic number
+    "PLR2004",
+    # Redefined loop name
+    "PLW2901",
+    # Global statements are discouraged
+    "PLW0603",
+    # compare-to-empty-string
+    "PLC1901",
+    # Consider `elif` instead of `else` then `if` to remove indentation level
+    "PLR5501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"

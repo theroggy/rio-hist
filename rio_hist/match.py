@@ -1,29 +1,28 @@
-from __future__ import division, absolute_import
+"""Histogram matching for raster data."""
+
 import logging
 import os
 
 import numpy as np
 import rasterio
 from rasterio.transform import guard_transform
-from .utils import cs_forward, cs_backward
 
+from .utils import cs_backward, cs_forward
 
 logger = logging.getLogger(__name__)
 
 
 def histogram_match(source, reference, match_proportion=1.0):
-    """
-    Adjust the values of a source array
-    so that its histogram matches that of a reference array
+    """Adjust the values of an array so its histogram matches that of a reference array.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
         source: np.ndarray
         reference: np.ndarray
         match_proportion: float, range 0..1
 
-    Returns:
-    -----------
+    Returns
+    -------
         target: np.ndarray
             The output array with the same shape as source
             but adjusted so that its histogram matches the reference
@@ -42,7 +41,8 @@ def histogram_match(source, reference, match_proportion=1.0):
     # and their corresponding indices and counts
     logger.debug("Get unique pixel values")
     s_values, s_idx, s_counts = np.unique(
-        source, return_inverse=True, return_counts=True)
+        source, return_inverse=True, return_counts=True
+    )
     r_values, r_counts = np.unique(reference, return_counts=True)
     s_size = source.size
 
@@ -86,24 +86,49 @@ def histogram_match(source, reference, match_proportion=1.0):
 
 
 def calculate_mask(src, arr):
+    """Calculate the mask and fill value for a raster.
+
+    Parameters
+    ----------
+        src: rasterio.DatasetReader
+            The source raster dataset.
+        arr: np.ma.MaskedArray
+            The masked array read from the source dataset.
+
+    Returns
+    -------
+        mask: np.ndarray or None
+            The mask array, or None if there are no masked values.
+    """
     msk = arr.mask
     if msk.sum() == 0:
         mask = None
         fill = None
     else:
         _gdal_mask = src.dataset_mask()
-        mask = np.invert((_gdal_mask / 255).astype('bool'))
+        mask = np.invert((_gdal_mask / 255).astype("bool"))
         fill = arr.fill_value
     return mask, fill
 
 
-def hist_match_worker(src_path, ref_path, dst_path, match_proportion,
-                      creation_options, bands, color_space, plot):
-    """Match histogram of src to ref, outputing to dst
-    optionally output a plot to <dst>_plot.png
+def hist_match_worker(
+    src_path,
+    ref_path,
+    dst_path,
+    match_proportion,
+    creation_options,
+    bands,
+    color_space,
+    plot,
+):
+    """Match histogram of src to ref, outputing to dst.
+
+    Optionally output a plot to <dst>_plot.png
     """
-    logger.info("Matching {} to histogram of {} using {} color space".format(
-        os.path.basename(src_path), os.path.basename(ref_path), color_space))
+    logger.info(
+        f"Matching {os.path.basename(src_path)} to histogram of "
+        f"{os.path.basename(ref_path)} using {color_space} color space"
+    )
 
     with rasterio.open(src_path) as src:
         profile = src.profile.copy()
@@ -119,24 +144,24 @@ def hist_match_worker(src_path, ref_path, dst_path, match_proportion,
     src = cs_forward(src_arr, color_space)
     ref = cs_forward(ref_arr, color_space)
 
-    bixs = tuple([int(x) - 1 for x in bands.split(',')])
+    bixs = tuple([int(x) - 1 for x in bands.split(",")])
     band_names = [color_space[x] for x in bixs]  # assume 1 letter per band
 
     target = src.copy()
     for i, b in enumerate(bixs):
-        logger.debug("Processing band {}".format(b))
+        logger.debug(f"Processing band {b}")
         src_band = src[b]
         ref_band = ref[b]
 
         # Re-apply 2D mask to each band
         if src_mask is not None:
-            logger.debug("apply src_mask to band {}".format(b))
+            logger.debug(f"apply src_mask to band {b}")
             src_band = np.ma.asarray(src_band)
             src_band.mask = src_mask
             src_band.fill_value = src_fill
 
         if ref_mask is not None:
-            logger.debug("apply ref_mask to band {}".format(b))
+            logger.debug(f"apply ref_mask to band {b}")
             ref_band = np.ma.asarray(ref_band)
             ref_band.mask = ref_mask
             ref_band.fill_value = ref_fill
@@ -152,30 +177,36 @@ def hist_match_worker(src_path, ref_path, dst_path, match_proportion,
             target_rgb = np.ma.asarray(target_rgb)
         target_rgb.mask = np.array((src_mask, src_mask, src_mask))
         target_rgb.fill_value = src_fill
-        profile['count'] = 4
+        profile["count"] = 4
     else:
-        profile['count'] = 3
+        profile["count"] = 3
 
-    profile['dtype'] = 'uint8'
-    profile['nodata'] = None
-    profile['transform'] = guard_transform(profile['transform'])
+    profile["dtype"] = "uint8"
+    profile["nodata"] = None
+    profile["transform"] = guard_transform(profile["transform"])
     profile.update(creation_options)
 
-    logger.info("Writing raster {}".format(dst_path))
-    with rasterio.open(dst_path, 'w', **profile) as dst:
+    logger.info(f"Writing raster {dst_path}")
+    with rasterio.open(dst_path, "w", **profile) as dst:
         dst.write(target_rgb[0], 1)
         dst.write(target_rgb[1], 2)
         dst.write(target_rgb[2], 3)
         if src_mask is not None:
-            gdal_mask = (np.invert(src_mask) * 255).astype('uint8')
+            gdal_mask = (np.invert(src_mask) * 255).astype("uint8")
             dst.write(gdal_mask, 4)
 
     if plot:
         from .plot import make_plot
+
         outplot = os.path.splitext(dst_path)[0] + "_plot.png"
-        logger.info("Writing figure to {}".format(outplot))
+        logger.info(f"Writing figure to {outplot}")
         make_plot(
-            src_path, ref_path, dst_path,
-            src, ref, target,
+            src_path,
+            ref_path,
+            dst_path,
+            src,
+            ref,
+            target,
             output=outplot,
-            bands=tuple(zip(bixs, band_names)))
+            bands=tuple(zip(bixs, band_names)),
+        )

@@ -1,21 +1,23 @@
-from __future__ import division, absolute_import
+"""Module with functions to create plots."""
+
 import logging
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from pylab import rcParams
+
 from .utils import raster_to_image
 
 logger = logging.getLogger(__name__)
 
 
-def make_plot(source, reference, target,
-              src_arr, ref_arr, tar_arr,
-              output, bands):
-    """ Create a diagnostic plot showing source, reference and matched image
-    and the cumulative distribution functions for each band
+def make_plot(source, reference, target, src_arr, ref_arr, tar_arr, output, bands):
+    """Create a diagnostic plot.
+
+    The plot shows the source, reference and matched image and the cumulative
+    distribution functions for each band.
     """
-    rcParams['figure.figsize'] = 16, 14
+    rcParams["figure.figsize"] = 16, 14
 
     logger.debug("reading images")
     i1 = raster_to_image(source)
@@ -26,24 +28,24 @@ def make_plot(source, reference, target,
 
     logger.debug("showing images")
     ax1.imshow(i1)
-    ax1.set_title('Source')
+    ax1.set_title("Source")
     ax1.set_xticklabels([])
     ax1.set_yticklabels([])
 
     ax2.imshow(i2)
-    ax2.set_title('Reference')
+    ax2.set_title("Reference")
     ax2.set_xticklabels([])
     ax2.set_yticklabels([])
 
     ax3.imshow(i3)
-    ax3.set_title('Matched to ' + ', '.join(str(b) for _, b in bands))
+    ax3.set_title("Matched to " + ", ".join(str(b) for _, b in bands))
     ax3.set_xticklabels([])
     ax3.set_yticklabels([])
 
     logger.debug("RGB histograms")
     axes = (ax4, ax5, ax6)
     imgs = (i1, i2, i3)
-    titles = ('Source', 'Reference', 'Output')
+    titles = ("Source", "Reference", "Output")
     bins = 32
     for i, axis in enumerate(axes):
         im = imgs[i]
@@ -55,11 +57,12 @@ def make_plot(source, reference, target,
         for color, name in ((red, "red"), (green, "green"), (blue, "blue")):
             norm = color / im.size
             # axis.plot(norm, color=name, lw=2)
-            axis.fill_between([float(x) / bins for x in range(bins)],
-                              norm, facecolor=name, alpha=0.15)
-        axis.set_title("{} RGB histogram".format(title))
+            axis.fill_between(
+                [float(x) / bins for x in range(bins)], norm, facecolor=name, alpha=0.15
+            )
+        axis.set_title(f"{title} RGB histogram")
         # axis.set_yticklabels([])
-        axis.grid('on')
+        axis.grid("on")
 
     logger.debug("CDF match plots")
     axes = (ax7, ax8, ax9)
@@ -70,17 +73,17 @@ def make_plot(source, reference, target,
         target_band = tar_arr[b]
         try:
             source_band = source_band.compressed()
-        except:
+        except Exception:
             pass
 
         try:
             reference_band = reference_band.compressed()
-        except:
+        except Exception:
             pass
 
         try:
             target_band = target_band.compressed()
-        except:
+        except Exception:
             pass
 
         sv, sc = np.unique(source_band, return_counts=True)
@@ -91,13 +94,13 @@ def make_plot(source, reference, target,
         rcdf = np.cumsum(rc).astype(np.float64) / reference_band.size
         tcdf = np.cumsum(tc).astype(np.float64) / target_band.size
 
-        ax.set_title("{} cumulative distribution".format(band))
+        ax.set_title(f"{band} cumulative distribution")
         ax.plot(sv, scdf, label="Source")
         ax.plot(rv, rcdf, label="Reference")
-        ax.plot(tv, tcdf, '--r', lw=2, label="Match")
+        ax.plot(tv, tcdf, "--r", lw=2, label="Match")
         if b == 1:
             ax.legend(loc=9, bbox_to_anchor=(0.5, -0.05))
         # ax.set_yticklabels([])
-        ax.grid('on')
+        ax.grid("on")
 
-    plt.savefig(output, bbox_inches='tight')
+    plt.savefig(output, bbox_inches="tight")

@@ -1,5 +1,6 @@
-import logging
+"""Histogram matching plugin for rasterio."""
 
+import logging
 
 __version__ = "1.0.0"
 
