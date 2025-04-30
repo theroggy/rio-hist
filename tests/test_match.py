@@ -38,8 +38,6 @@ def test_hist_match_worker_bands(tmp_path):
         dst_path=dst_path,
         match_proportion=0.5,
         bands="1,2",
-        color_space=None,
-        plot=False,
     )
 
     assert dst_path.exists()
