@@ -23,9 +23,14 @@ def reshape_as_raster(arr):
 
 def cs_forward(arr, cs="rgb"):
     """RGB (any dtype) to whatevs."""
+    # First normalize the array to [0, 1] range.
     arrnorm = arr.astype("float64") / np.iinfo(arr.dtype).max
-    cs = cs.lower()
-    if cs == "rgb":
+
+    # Convert color space (in needed).
+    if cs is not None:
+        cs = cs.lower()
+
+    if cs is None or cs == "rgb":
         return arrnorm
     elif cs == "lch":
         return convert_arr(arrnorm, src=ColorSpace.rgb, dst=ColorSpace.lch)
@@ -39,8 +44,10 @@ def cs_forward(arr, cs="rgb"):
 
 def cs_backward(arr, cs="rgb"):
     """Whatevs to RGB 8-bit."""
-    cs = cs.lower()
-    if cs == "rgb":
+    if cs is not None:
+        cs = cs.lower()
+
+    if cs is None or cs == "rgb":
         return (arr * 255).astype("uint8")
     elif cs == "lch":
         rgb = convert_arr(arr, src=ColorSpace.lch, dst=ColorSpace.rgb)

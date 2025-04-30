@@ -20,7 +20,7 @@ def _validate_proportion(ctx, param, value):
 @click.option(
     "--color-space",
     "-c",
-    default="RGB",
+    default=None,
     type=click.Choice(["RGB", "LCH", "LAB", "Lab", "LUV", "XYZ"]),
     help="Colorspace",
 )
