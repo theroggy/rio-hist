@@ -115,28 +115,54 @@ def hist_match_worker(
     src_path,
     ref_path,
     dst_path,
-    match_proportion,
-    creation_options,
-    bands,
-    color_space,
-    plot,
+    match_proportion=1.0,
+    creation_options={},
+    bands=[1, 2, 3],
+    color_space=None,
+    plot=False,
 ):
-    """Match histogram of src to ref, outputing to dst.
+    """Match histogram of src to ref and write the result to dst.
 
     Optionally output a plot to <dst>_plot.png
+
+    Parameters
+    ----------
+        src_path: str
+            Path to the source raster file.
+        ref_path: str
+            Path to the reference raster file.
+        dst_path: str
+            Path to the output raster file.
+        match_proportion: float
+            Proportion of histogram matching (0.0 to 1.0).
+        creation_options: dict
+            Creation options for the output raster.
+        bands: str or list of int
+            Bands to be used for histogram matching.
+        color_space: str, optional
+            Color space to use for the histogram matching. Supported values are
+            None/"RGB" (no conversion), "LCH", "LAB", "Lab", "LUV" or "XYZ".
+        plot: bool
+            True to create a plot of the matching process.
     """
     logger.info(
         f"Matching {os.path.basename(src_path)} to histogram of "
         f"{os.path.basename(ref_path)} using {color_space} color space"
     )
 
+    # Validate and prepare input parameters
     if isinstance(bands, str):
         bands = [int(x) for x in bands.split(",")]
-    if len(color_space) >= max(bands) + 1:
+    nb_bands = len(bands)
+
+    if color_space is not None and nb_bands != 3:
+        raise ValueError("if a color_space is specified, 3 bands should be used.")
+
+    # Prepare band names
+    if color_space is not None and len(color_space) >= max(bands) + 1:
         band_names = [color_space[x - 1] for x in bands]  # assume 1 letter per band
     else:
         band_names = [f"Band {x}" for x in bands]
-    nb_bands = len(bands)
 
     with rasterio.open(src_path) as src:
         profile = src.profile.copy()
