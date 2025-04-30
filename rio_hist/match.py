@@ -158,31 +158,49 @@ def hist_match_worker(
     if color_space is not None and nb_bands != 3:
         raise ValueError("if a color_space is specified, 3 bands should be used.")
 
+    with rasterio.open(src_path) as src_file:
+        profile = src_file.profile.copy()
+        src_arr = src_file.read(bands, masked=True)
+        src_dtype = src_arr.dtype
+        src_band_descr = src_file.descriptions
+        src_mask, src_fill = calculate_mask(src_file, src_arr)
+        src_arr = src_arr.filled()
+
+    with rasterio.open(ref_path) as ref_file:
+        ref_arr = ref_file.read(bands, masked=True)
+        ref_mask, ref_fill = calculate_mask(ref_file, ref_arr)
+        ref_arr = ref_arr.filled()
+
+    # Some extra checks on input parameters
+    if color_space is not None and src_dtype.kind == "f":
+        raise ValueError("color_space must be None for floating point data.")
+
     # Prepare band names
-    if color_space is not None and len(color_space) >= max(bands) + 1:
+    if all(src_band_descr):
+        band_names = [src_band_descr[band - 1] for band in bands]
+    elif color_space and len(color_space) >= max(bands) + 1:
         band_names = [color_space[x - 1] for x in bands]  # assume 1 letter per band
     else:
         band_names = [f"Band {x}" for x in bands]
 
-    with rasterio.open(src_path) as src:
-        profile = src.profile.copy()
-        src_arr = src.read(bands, masked=True)
-        src_mask, src_fill = calculate_mask(src, src_arr)
-        src_arr = src_arr.filled()
+    # If src file is no floating point data, normalize + apply color space conversion
+    # on all bands in one go.
+    if not src_dtype.kind == "f":
+        src_arr = cs_forward(src_arr, color_space)
+        ref_arr = cs_forward(ref_arr, color_space)
 
-    with rasterio.open(ref_path) as ref:
-        ref_arr = ref.read(bands, masked=True)
-        ref_mask, ref_fill = calculate_mask(ref, ref_arr)
-        ref_arr = ref_arr.filled()
+    target = src_arr.copy()
 
-    src = cs_forward(src_arr, color_space)
-    ref = cs_forward(ref_arr, color_space)
-
-    target = src.copy()
     for i, b in enumerate(bands):
         logger.debug(f"Processing band {b}")
-        src_band = src[i]
-        ref_band = ref[i]
+        src_band = src_arr[i]
+        ref_band = ref_arr[i]
+
+        # For floating point data, normalize per band
+        if src_dtype.kind == "f":
+            max_value = max(np.max(src_band), np.max(ref_band))
+            src_band = src_band / max_value
+            ref_band = ref_band / max_value
 
         # Re-apply 2D mask to each band
         if src_mask is not None:
@@ -199,20 +217,26 @@ def hist_match_worker(
 
         target[i] = histogram_match(src_band, ref_band, match_proportion)
 
-    target_rgb = cs_backward(target, color_space)
+        # For floating point data, denormalize per band
+        if src_dtype.kind == "f":
+            target[i] = (target[i] * max_value).astype(src_band.dtype)
+
+    # No floating point data, so denormalize + convert color space for all bands.
+    if not src_dtype.kind == "f":
+        target = cs_backward(target, color_space)
 
     # re-apply src_mask to target_rgb and write ndv
     if src_mask is not None:
         logger.debug("apply src_mask to target_rgb")
-        if not np.ma.is_masked(target_rgb):
-            target_rgb = np.ma.asarray(target_rgb)
-        target_rgb.mask = np.array((src_mask, src_mask, src_mask))
-        target_rgb.fill_value = src_fill
+        if not np.ma.is_masked(target):
+            target = np.ma.asarray(target)
+        target.mask = np.array((src_mask, src_mask, src_mask))
+        target.fill_value = src_fill
         profile["count"] = nb_bands + 1
     else:
         profile["count"] = nb_bands
 
-    profile["dtype"] = "uint8"
+    # profile["dtype"] = "uint8"
     profile["nodata"] = None
     profile["transform"] = guard_transform(profile["transform"])
     profile.update(creation_options)
@@ -220,11 +244,12 @@ def hist_match_worker(
     logger.info(f"Writing raster {dst_path}")
     with rasterio.open(dst_path, "w", **profile) as dst:
         for i in range(nb_bands):
-            dst.write(target_rgb[i], i + 1)
+            dst.write(target[i], i + 1)
+            dst.set_band_description(i + 1, band_names[i])
 
         if src_mask is not None:
             gdal_mask = (np.invert(src_mask) * 255).astype("uint8")
-            dst.write(gdal_mask, nb_bands + 1)
+            dst.write_mask(gdal_mask)
 
     if plot:
         from .plot import make_plot
@@ -235,8 +260,8 @@ def hist_match_worker(
             src_path,
             ref_path,
             dst_path,
-            src,
-            ref,
+            src_arr,
+            ref_arr,
             target,
             output=outplot,
             bands=tuple(zip(range(nb_bands), band_names)),
