@@ -29,8 +29,6 @@ def test_hist_cli_limit_bands(tmpdir):
         [
             "-b",
             "1,2",
-            "-c",
-            None,
             "tests/data/source1.tif",
             "tests/data/reference1.tif",
             output,
